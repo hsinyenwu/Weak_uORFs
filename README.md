@@ -136,15 +136,13 @@ for(i in 1:length(fiveUTR_seqs)){
   }
 }
 
-#CAGE data
+#Save CAGE pTUu data
 saveRDS(OUT_df2,file="~/Desktop/CAGE/OUT_CAGE_WuORFs.RDS")
 OUT_df2 <- readRDS("~/Desktop/CAGE/OUT_CAGE_WuORFs.RDS")
 dim(OUT_df2) #[1] 4471    8
 
-# #TSS data
-# # saveRDS(OUT_df2,file="~/Desktop/CAGE/OUT_df7_TSS_Nielsen.RDS")
-# OUT_df2 <- readRDS("~/Desktop/CAGE/OUT_df7_TSS_Nielsen.RDS")
-
+#Next merge the main ORF info with uORF info (both from RiboTaper output)
+#We need the Ribo-seq reads mapped to the uORFs and mORFs
 ORFs_max_filt_mORF <- ORFs_max_filt %>% 
   filter(transcript_id %in% ORFs_max_filt_uORF$transcript_id,category=="ORFs_ccds") %>% 
   group_by(transcript_id) %>% top_n(n=1, wt = ORF_length)
@@ -165,19 +163,7 @@ ORFs_max_filt_uORF_mORF <- inner_join(ORFs_max_filt_uORF,ORFs_max_filt_mORF,by="
 nrow(ORFs_max_filt_uORF) #1529
 nrow(ORFs_max_filt_uORF_mORF) #1455
 
-
-#CAGE data
-dim(OUT_df2) #[1] 4471    8
-
-#TSS data
-# saveRDS(OUT_df2,file="~/Desktop/CAGE/OUT_df7_TSS_Nielsen.RDS")
-# OUT_df2 <- readRDS("~/Desktop/CAGE/OUT_df7_TSS_Nielsen.RDS")
-
-OUT_df2
-head(OUT_df2)
-dim(OUT_df2) #[1] 4471    8
-
-#Merge OUT_df2 with ORFs_max_filt_uORF_mORF
+#Merge OUT_df2 (CAGE data) with ORFs_max_filt_uORF_mORF
 OUT_df5 <- inner_join(ORFs_max_filt_uORF_mORF, OUT_df2, by = c("transcript_id" = "tx_id", "ORF_pept" = "aa_seq"))
 head(OUT_df5)
 dim(OUT_df5) #[1] 1252   50, number smaller because the 10 aa criteria
@@ -190,10 +176,11 @@ ORFs_max_filt_uORFx <- ORFs_max_filt_uORF %>% filter(transcript_id %in% OUT_df2$
 OUT_df5 <- OUT_df5 %>% filter(pTUu>=0)
 dim(OUT_df5) #[1] 1252   50
 
+#Plot pTUu CAGE vs u-m Ribo ratio
 OUT_df5$Category <- ifelse(OUT_df5$uORF_mORF_Ribo_ratio>1, "Strong", ifelse(OUT_df5$uORF_mORF_Ribo_ratio>0.2 , "Mid","Weak"))
 OUT_df5$Category <- factor(OUT_df5$Category, levels=c("Strong","Mid","Weak"), labels=c("Strong >1","Mid 1~0.2","Weak <0.2"))                   
 table(OUT_df5$Category)
-A=pairwise_ks_test(value = OUT_df5$pTUu,group = OUT_df5$Category)
+A=pairwise_ks_test(value = OUT_df5$pTUu,group = OUT_df5$Category) #perform pairwise KS test 
 A
 multcompLetters(A*6,
                 compare="<",
