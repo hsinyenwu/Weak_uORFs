@@ -332,3 +332,9 @@ ggplot(TE_CDS2, aes(TE,color=Category))+
 ggsave("~/Desktop/Weak_uORF/Figure 1C TE for uORF_mORF_Ribo_ratio 1 0.2 0.pdf",width = 6,height = 4)
 ```
 ![image](https://github.com/hsinyenwu/Weak_uORFs/assets/4383665/18b42a3d-7fe4-4457-ba67-811a2338f876)
+
+#### TSS-seq 
+Just use the TSS-Seq_WT_Nielsen_2019 file in Mendeley data for the above code.
+
+
+
