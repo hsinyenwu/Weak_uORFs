@@ -1,4 +1,5 @@
-
+## uORF strength vs TSS
+Here we describe how we analyzed the TSS info vs uORF strength.
 
 ### TSS-seq and CAGE-seq data are download from [TAIR website](https://www.arabidopsis.org)  
 [TSS-seq (two weeks old seedling) data from Nielsen et al., PLoS Genetics 2019](https://doi.org/10.1371/journal.pgen.1007969)   
@@ -7,7 +8,7 @@ The downloaded data were further processed into [RiboPlotR](https://github.com/h
 The processed files and other files required for reproducing this research are uploaded to Mendeley data.  
 
 ### CAGE-seq
-**``uORF_mORF_Ribo_ratio is also known as Relative uORF Strength (RuS)``**
+**uORF_mORF_Ribo_ratio is also known as Relative uORF Strength (RuS)**
 ```
 ###################################
 # Weak uORF Oct 21 2023
