@@ -13,6 +13,7 @@ The processed files and other files required for reproducing this research are u
 ###################################
 #rm(list=ls())
 gc()
+#Load library
 library(dplyr)
 library(GenomicFeatures)
 library(GenomicRanges)
@@ -24,11 +25,12 @@ library(ggplot2)
 library(openxlsx)
 library(DataScienceR)
 library(multcompView)
+
 #Load RT TuORFs
 ORFs_max_filt <- read.delim("~/Desktop/CTRL_v1/ORFs_max_filt_expressed",header=T,sep="\t",stringsAsFactors = F,quote = "")
 ORFs_max_filt_uORF <- ORFs_max_filt %>% filter(category=="uORF")
 ORFs_max_filt_uORF_gene_id_undup <- as.data.frame(table(ORFs_max_filt_uORF$gene_id))
-# Only select genes with one RiboTaper TuORF
+# Only select genes with one RiboTaper TuORF (simplify the analysis)
 ORFs_max_filt_uORF_gene_id_undup <- ORFs_max_filt_uORF_gene_id_undup %>% filter(Freq==1)
 ORFs_max_filt_uORF <- ORFs_max_filt_uORF %>% filter(gene_id %in% ORFs_max_filt_uORF_gene_id_undup$Var1)
 ORFs_max_filt_uORF$ORF_pept <- paste0(ORFs_max_filt_uORF$ORF_pept,"*")
@@ -46,6 +48,7 @@ fiveUTR_ORFs <- findMapORFs(fiveUTR, fiveUTR_seqs,startCodon = "ATG",longestORF=
 length(fiveUTR_seqs) #1529
 length(fiveUTR_ORFs) #5488
 
+#Extend the 5'UTR to promoter region (+100 bp)
 EXTEND <- function(x){
   if(as.character(strand(x))[1]=="+"){
     start(x)[1]=start(x)[1]-100
@@ -55,26 +58,29 @@ EXTEND <- function(x){
   }
   return(x)
 }
-
 fiveUTR2 <- lapply(1:length(fiveUTR),function(x) EXTEND(fiveUTR[[x]]))
 names(fiveUTR2) <- names(fiveUTR)
 fiveUTR2 <- GRangesList(fiveUTR2)
 
-#CAGE-seq
+#Load CAGE-seq data
 CAGE=read.delim(file="~/Desktop/CAGE/wt_R123_genome_RiboPlotR.txt",header=F,stringsAsFactors=F,sep="\t")
 colnames(CAGE) <- c("count","chr","start","strand")
 CAGE$end <- CAGE$start
 head(CAGE)
+
 #Convert CAGE reads to GRanges
 CAGE <- makeGRangesFromDataFrame(CAGE,keep.extra.columns=T)
 CAGE
 
-# not use the longest uORF parameter
+#Make an empty data.frame
 OUT_df2 <- data.frame()
+
+#Get pTUu by mapping CAGE reads to the 5'UTR+promoter range
 for(i in 1:length(fiveUTR_seqs)){
   if(i %% 100 ==0) print(i)
   tx_id=names(fiveUTR_seqs[i])
   tx_strand <- as.character(strand(unlist(fiveUTR[tx_id]))[1])
+  # not use the longest uORF parameter
   fiveUTR_ORFs <- findMapORFs(fiveUTR[tx_id], fiveUTR_seqs[tx_id],startCodon = "ATG",longestORF=F,groupByTx=F,minimumLength=8)
   if(length(fiveUTR_ORFs)==0) next
   else{
