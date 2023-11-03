@@ -1,0 +1,286 @@
+
+
+```
+#############################################################################################
+# UuORF Oct 21 2023 CAGE
+#############################################################################################
+###Find sequence predicted from MAX expressed isoforms
+rm(list=ls())
+FA <- FaFile("~/Desktop/Weak_uORF/TAIR10_chr_all_2.fas")
+txdb <- makeTxDbFromGFF("~/Desktop/Weak_uORF/Araport11_20181206_max_isoform.gtf",format="gtf", dataSource="Araport11",organism="Arabidopsis")
+exonByGene <- exonsBy(txdb,by='gene')
+exonByTx <- exonsBy(txdb,by='tx',use.names=T)
+fiveUTRByTx <- fiveUTRsByTranscript(txdb,use.names=T)
+fiveUTR_seqs <- extractTranscriptSeqs(FA,fiveUTRByTx)
+length(fiveUTR_seqs) #[1] 22136
+fiveUTR_seqs_genes <- substr(names(fiveUTR_seqs),1,9)
+
+#TSS info dataset 1 (CAGE-seq)
+CAGE=read.delim(file="~/Desktop/Weak_uORF/wt_R123_genome_RiboPlotR.txt",header=F,stringsAsFactors=F,sep="\t")
+colnames(CAGE) <- c("count","chr","start","strand")
+CAGE$end <- CAGE$start
+head(CAGE)
+#Convert CAGE reads to GRanges
+CAGE <- makeGRangesFromDataFrame(CAGE,keep.extra.columns=T)
+CAGE
+
+#Load RT translated uORFs (TuORFs)
+ORFs_max_filt <- read.delim("~/Desktop/Weak_uORF/ORFs_max_filt_expressed",header=T,sep="\t",stringsAsFactors = F,quote = "")
+ORFs_max_filt_uORF <- ORFs_max_filt %>% filter(category=="uORF")
+#Load CiPS TuORFs
+CiPS_uORF <- read.xlsx("~/Desktop/Weak_uORF/TableS5_2023_July29.xlsx")
+
+#select the gene with only one UuORF (remove genes with RiboTaper and CiPS identified uORFs)
+fiveUTR_seqs2 <- fiveUTR_seqs[!(fiveUTR_seqs_genes %in% c(ORFs_max_filt_uORF$gene_id,CiPS_uORF$gene_id))]
+fiveUTRByTx2 <- fiveUTRByTx[!(fiveUTR_seqs_genes %in% c(ORFs_max_filt_uORF$gene_id,CiPS_uORF$gene_id))]
+#Only check uORFs on 5'UTRs without RiboTaper or CiPS uORFs
+fiveUTR_ORFs <- findMapORFs(fiveUTRByTx2, fiveUTR_seqs2,startCodon = "ATG",longestORF=T,groupByTx=F,minimumLength=8)
+length(fiveUTR_ORFs) #8610
+tx_id_uORF_df <- table(gsub("_.*","",names(fiveUTR_ORFs))) %>% as.data.frame() %>% filter(Freq==1)
+nrow(tx_id_uORF_df) #3241
+fiveUTR_ORFs2 <- fiveUTR_ORFs[gsub("_.*","",names(fiveUTR_ORFs)) %in% tx_id_uORF_df$Var1]
+length(fiveUTR_ORFs2) #3241
+fiveUTR_seqs3 <- fiveUTR_seqs2[names(fiveUTR_seqs2) %in% tx_id_uORF_df$Var1]
+length(fiveUTR_seqs3) #3241
+fiveUTRByTx3 <- fiveUTRByTx2[names(fiveUTRByTx2) %in% names(fiveUTR_seqs3)]
+length(fiveUTRByTx3)
+
+#Function to extend the 5'UTR to promoter region (100 bp)
+EXTEND <- function(x){
+  if(as.character(strand(x))[1]=="+"){
+    start(x)[1]=start(x)[1]-100
+  }
+  else{
+    end(x)[1]=end(x)[1]+100
+  }
+  return(x)
+}
+
+fiveUTRByTx4 <- lapply(1:length(fiveUTRByTx3),function(x) EXTEND(fiveUTRByTx3[[x]]))
+names(fiveUTRByTx4) <- names(fiveUTRByTx3)
+fiveUTRByTx3 <- GRangesList(fiveUTRByTx4)
+
+#  use the longest uORF parameter
+OUT_df2 <- data.frame()
+for(i in 1:length(fiveUTR_seqs3)){
+  # print(i)
+  if(i %% 100 ==0) print(i)
+  tx_id=names(fiveUTR_seqs3[i])
+  # print("x")
+  tx_strand <- as.character(strand(unlist(fiveUTRByTx3[i]))[1])
+  # print("y")
+  fiveUTR_ORFs <- findMapORFs(fiveUTRByTx3[i], fiveUTR_seqs3[i],startCodon = "ATG",longestORF=T,groupByTx=F,minimumLength=8)
+  # print(1)
+  if(length(fiveUTR_ORFs)==0) next
+  else{
+    uORF_starts <- c()
+    for(j in 1:length(fiveUTR_ORFs)){
+      # print(2)
+      if(tx_strand=="+"){
+        uORF_starts[j] <- unlist(start(fiveUTR_ORFs[[j]])[1])
+      } else {
+        uORF_starts[j] <- unlist(end(fiveUTR_ORFs[[j]])[1])
+      }
+    }
+    uORF_position_ranks <- c()
+    if(tx_strand=="+"){
+      uORF_position_ranks <- rank(uORF_starts)
+    } else {
+      uORF_position_ranks <- rank(-uORF_starts)
+    }
+    
+    z=fiveUTRByTx[[tx_id]]
+    aa=unlist(Map(`:`, start(z), end(z)))
+    gr=GRanges(seqnames=suppressWarnings(as.character(seqnames(z))[1]), ranges=IRanges(start = aa,width=1),strand=tx_strand)
+    ranges1 <- subsetByOverlaps(CAGE,gr)
+    # print(3)
+    Cb_p <- c()
+    for(i in 1:length(uORF_starts)){
+      if(tx_strand=="+"){
+        ranges1a <- ranges1[start(ranges(ranges1)) > uORF_starts[i]] #counts after uORFs starts
+        ranges1b <- ranges1[start(ranges(ranges1)) < uORF_starts[i]] #counts before uORFs starts
+        Ca <- sum(ranges1a$count)
+        Cb <- sum(ranges1b$count)
+        Cb_p[i] <- Cb/(Ca+Cb)*100 
+      } else{
+        #for "-" strand
+        ranges1a <- ranges1[start(ranges(ranges1)) < uORF_starts[i]] #counts after uORFs starts
+        ranges1b <- ranges1[start(ranges(ranges1)) > uORF_starts[i]] #counts before uORFs starts
+        Ca <- sum(ranges1a$count)
+        Cb <- sum(ranges1b$count)
+        Cb_p[i] <- Cb/(Ca+Cb)*100 
+      }
+    }
+    # print(4)
+    uORF_seq=unname(sapply(1:length(fiveUTR_ORFs) ,function(x) as.character(translate(DNAString(paste(getSeq(FA,fiveUTR_ORFs[[x]]), collapse=""))))))
+    # print(5)
+    out_df <- data.frame(gene_id=substr(tx_id,1,9),
+                         tx_id=tx_id,
+                         uORF_id=names(fiveUTR_ORFs),
+                         Cb_p=Cb_p,
+                         aa_seq=uORF_seq,
+                         uORF_starts=uORF_starts,
+                         uORF_strand=tx_strand,
+                         uORF_position_ranks=uORF_position_ranks)
+    # print(6)
+    OUT_df2 <- rbind(OUT_df2,out_df)
+    # print(7)
+  }
+}
+
+# #CAGE data
+saveRDS(OUT_df2,file="~/Desktop/Weak_uORF/OUT_df7_CAGE_R123_OuORFs+100.RDS")
+OUT_df2 <- readRDS("~/Desktop/Weak_uORF/OUT_df7_CAGE_R123_OuORFs+100.RDS")
+dim(OUT_df2) #[1] 3241    8
+OUT_df2 <- OUT_df2 %>% mutate_all(~replace(., is.nan(.), 0))
+OUT_df2$Category <- ifelse(OUT_df2$Cb_p> 80 , "Strong", ifelse(OUT_df2$Cb_p> 40 , "Mid","Weak"))
+OUT_df2$Category <- factor(OUT_df2$Category, levels=c("Strong","Mid","Weak"), labels=c("Strong 100~80 Cb_p","Mid 80-40 Cb_p","Weak 40~0 Cb_p"))                   
+table(OUT_df2$Category)
+# OUT_df2 <- OUT_df2 %>% filter(gene_id %in% TE_CDS$gene_id) #see below
+
+CiPS_uORF %>% filter(gene_id=="AT1G06470")
+# A=pairwise_ks_test(value = TE_CDS2$TE,group = TE_CDS2$Category)
+# A
+# multcompLetters(A*factorial(4-1),
+#                 compare="<",
+#                 threshold=0.05,
+#                 Letters=letters,
+#                 reversed = FALSE)
+OUT_df2 %>%
+  group_by(Category) %>%
+  dplyr::summarize(Median = median(Cb_p, na.rm=TRUE))
+table(OUT_df2$Category)
+
+ggplot(OUT_df2, aes(x=Cb_p,color=Category))+
+  stat_ecdf(geom = "step",size=1)+
+  ggtitle("Group by Cb_p 80, 40, 0")+
+  xlim(0,100)+
+  theme_classic() +
+  theme(text = element_text(size = 15,face = "bold"), 
+        plot.title = element_text(hjust = 0.5, size = 18,face = "bold"),
+        plot.subtitle=element_text(hjust=0.5),
+        legend.text = element_text(size=15),
+        legend.title = element_text(size=17,face = "bold"),
+        axis.text = element_text(size = 12),
+        axis.title=element_text(size=15,face="bold"))
+
+ggsave("~/Desktop/Weak uORFs/UuORF Cb_p CAGE.pdf",width = 6,height = 4)
+```
+![image](https://github.com/hsinyenwu/Weak_uORFs/assets/4383665/794b6405-ebcb-49f6-a8a3-b5ff6d75046b)
+
+```
+RNA <- read.delim("~/Desktop/uORFs_miRNA/RSEM_Araport11_1st+2nd_Riboseq_RNA.genes.results_CDS_only",header=T,sep="\t",stringsAsFactors = F, quote="")
+Ribo <- read.delim("~/Desktop/uORFs_miRNA/RSEM_Araport11_1st+2nd_Riboseq_Ribo.genes.results_CDS_only",header=T,sep="\t",stringsAsFactors = F, quote="")
+TE_CDS <- data.frame(gene_id=RNA$gene_id,
+                     RNA=RNA$TPM,
+                     Ribo=Ribo$TPM,
+                     TE=Ribo$TPM/RNA$TPM)
+# Remove not translated transcripts
+fiveUTRByGeneNames <- substr(names(fiveUTRByTx),1,9)
+TE_CDS <- TE_CDS %>% filter(gene_id %in% fiveUTRByGeneNames)
+TE_CDS <- TE_CDS %>% filter(RNA>0)
+nrow(TE_CDS) #21616
+
+
+TE_CDS_strong <- TE_CDS %>% filter(gene_id %in% OUT_df2[OUT_df2$Category=="Strong 100~80 Cb_p",]$gene_id)
+TE_CDS_strong$Category <- "Strong"
+TE_CDS_Mid <- TE_CDS %>% filter(gene_id %in% OUT_df2[OUT_df2$Category=="Mid 80-40 Cb_p",]$gene_id)
+TE_CDS_Mid$Category <- "Mid"
+TE_CDS_Weak <- TE_CDS %>% filter(gene_id %in% OUT_df2[OUT_df2$Category=="Weak 40~0 Cb_p",]$gene_id)
+TE_CDS_Weak$Category <- "Weak"
+TE_CDS_RTuORFs <- TE_CDS %>% filter(gene_id %in% ORFs_max_filt_uORF$gene_id)
+TE_CDS_RTuORFs$Category <- "RTuORFs"
+
+TE_CDS_Other <- TE_CDS %>% filter(!(gene_id %in% c(OUT_df2$gene_id,TE_CDS_RTuORFs$gene_id)))
+TE_CDS_Other$Category <- "Other"
+
+TE_CDS2 <- rbind(TE_CDS_RTuORFs,TE_CDS_strong,TE_CDS_Mid,TE_CDS_Weak,TE_CDS_Other)
+TE_CDS2$Category <- factor(TE_CDS2$Category, levels=c("RTuORFs","Strong","Mid","Weak","Other"), labels=c("RTuORFs","Strong 100~80 Cb_p","Mid 80-40 Cb_p","Weak 40~0 Cb_p","Other"))                   
+nrow(TE_CDS2)
+
+table(TE_CDS2$Category)
+
+stat.test <- TE_CDS2 %>%
+  wilcox_test(TE ~ Category) %>%
+  adjust_pvalue(method = "BY") %>%
+  add_significance("p.adj")
+stat.test
+library(multcompView)
+library(rcompanion)
+stat_test_multicomp <- function(x) {
+  stat_test_mat <- matrix(nrow=length(unique(x$group1)),ncol=length(unique(x$group2)))
+  stat_test_mat[lower.tri(stat_test_mat, diag = TRUE)] <- x$p.adj
+  stat_test_df <- stat_test_mat %>% as.data.frame()
+  colnames(stat_test_df) <- unique(x$group1)
+  rownames(stat_test_df) <- unique(x$group2)
+  PT1 = fullPTable(stat_test_df)
+  PT2 = multcompLetters(PT1,
+                        compare="<",
+                        threshold=0.05,
+                        Letters=letters,
+                        reversed = FALSE)
+  PT2
+}
+MComp <- stat_test_multicomp(x=stat.test)
+MComp
+
+# boxplot
+bxp <- ggboxplot(TE_CDS2,
+                 x = "Category", y = "TE",
+                 color = "Category",
+                 outlier.shape=NA,
+                 notch = FALSE,
+                 ylim=c(-0.1,3.2),
+                 legend = "right") +
+  rotate_x_text(angle = 45) +
+  labs(tag = "Undetected uORFs") +
+  labs(title = "") +
+  ylab("TE")+
+  theme(plot.tag = element_text(face = 'bold',size=12),
+        axis.title.x=element_blank(),
+        axis.title.y=element_text(size=12),
+        axis.text.x=element_blank(),
+        legend.title=element_text(size=12),
+        legend.text=element_text(size=12),
+        plot.title = element_text(face = "italic"))
+bxp + geom_text(data=data.frame(), aes(x=names(MComp$Letters), y=2.9, label=unname(MComp$Letters)), col="black", size=5)+
+  stat_n_text(y.pos=-0.1,size = 2.5)
+
+ggsave("~/Desktop/Weak uORFs/UuORF Cb_p CAGE TE.pdf",width = 6,height = 4)
+```
+![image](https://github.com/hsinyenwu/Weak_uORFs/assets/4383665/a998a848-4f5a-4470-97f3-f7563c74594a)
+
+```
+stat.test <- TE_CDS2 %>%
+  wilcox_test(RNA ~ Category) %>%
+  adjust_pvalue(method = "BY") %>%
+  add_significance("p.adj")
+stat.test
+
+MComp <- stat_test_multicomp(x=stat.test)
+MComp
+
+# boxplot
+bxp <- ggboxplot(TE_CDS2,
+                 x = "Category", y = "RNA",
+                 color = "Category",
+                 outlier.shape=NA,
+                 notch = FALSE,
+                 ylim=c(-0.1,50),
+                 legend = "right") +
+  rotate_x_text(angle = 45) +
+  labs(tag = "Undetected uORFs") +
+  labs(title = "") +
+  ylab("RNA")+
+  theme(plot.tag = element_text(face = 'bold',size=12),
+        axis.title.x=element_blank(),
+        axis.title.y=element_text(size=12),
+        axis.text.x=element_blank(),
+        legend.title=element_text(size=12),
+        legend.text=element_text(size=12),
+        plot.title = element_text(face = "italic"))
+bxp + geom_text(data=data.frame(), aes(x=names(MComp$Letters), y=49, label=unname(MComp$Letters)), col="black", size=5)+
+  stat_n_text(y.pos=-0.1,size = 2.5)
+ggsave("~/Desktop/Weak uORFs/UuORF Cb_p CAGE RNA.pdf",width = 6,height = 4)
+```
+![image](https://github.com/hsinyenwu/Weak_uORFs/assets/4383665/0adaf69f-f22f-4617-aaac-05d9ce2a4adf)
