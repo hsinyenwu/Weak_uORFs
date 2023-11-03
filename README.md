@@ -210,6 +210,7 @@ ggplot(OUT_df5, aes(pTUu,color=Category))+
         axis.title=element_text(size=15,face="bold"))
 ggsave("~/Desktop/Weak uORFs/pTUu CAGE vs u-m Ribo ratio 1 0.2 0.pdf",width = 6,height = 4)
 ```
+![image](https://github.com/hsinyenwu/Weak_uORFs/assets/4383665/a6309845-c467-4b45-a4ee-436845383910)
 
 ```
 OUT_df5$Category <- ifelse(OUT_df5$pTUu> 80 , "Strong", ifelse(OUT_df5$pTUu> 40 , "Mid","Weak"))
@@ -239,6 +240,7 @@ ggplot(OUT_df5, aes(x=uORF_mORF_Ribo_ratio,color=Category))+
 
 ggsave("~/Desktop/Weak uORFs/uORF_mORF_Ribo_ratio vs pTUu 80 40 0 CAGE.pdf",width = 6,height = 4)
 ```
+<img width="678" alt="image" src="https://github.com/hsinyenwu/Weak_uORFs/assets/4383665/746fee93-f139-433b-9307-3b06e42805b3">
 
 ```
 RNA <- read.delim("~/Desktop/uORFs_miRNA/RSEM_Araport11_1st+2nd_Riboseq_RNA.genes.results_CDS_only",header=T,sep="\t",stringsAsFactors = F, quote="")
@@ -293,6 +295,7 @@ ggplot(TE_CDS2, aes(TE,color=Category))+
         axis.title=element_text(size=15,face="bold"))
 ggsave("~/Desktop/Weak uORFs/TE vs pTUu 80 40 0 CAGE.pdf",width = 6,height = 4)
 ```
+![image](https://github.com/hsinyenwu/Weak_uORFs/assets/4383665/e84a73d1-ef81-4f4f-80bb-118e3b594fe9)
 
 ```
 #######
@@ -335,3 +338,4 @@ ggplot(TE_CDS2, aes(TE,color=Category))+
         axis.title=element_text(size=15,face="bold"))
 ggsave("~/Desktop/Weak uORFs/Figure 1C TE for uORF_mORF_Ribo_ratio 1 0.2 0.pdf",width = 6,height = 4)
 ```
+![image](https://github.com/hsinyenwu/Weak_uORFs/assets/4383665/18b42a3d-7fe4-4457-ba67-811a2338f876)
