@@ -27,7 +27,7 @@ library(DataScienceR)
 library(multcompView)
 
 #Load RT TuORFs
-ORFs_max_filt <- read.delim("~/Desktop/CTRL_v1/ORFs_max_filt_expressed",header=T,sep="\t",stringsAsFactors = F,quote = "")
+ORFs_max_filt <- read.delim("~/Desktop/Weak_uORF/ORFs_max_filt_expressed",header=T,sep="\t",stringsAsFactors = F,quote = "")
 ORFs_max_filt_uORF <- ORFs_max_filt %>% filter(category=="uORF")
 ORFs_max_filt_uORF_gene_id_undup <- as.data.frame(table(ORFs_max_filt_uORF$gene_id))
 # Only select genes with one RiboTaper TuORF (simplify the analysis)
@@ -37,7 +37,7 @@ ORFs_max_filt_uORF$ORF_pept <- paste0(ORFs_max_filt_uORF$ORF_pept,"*")
 nrow(ORFs_max_filt_uORF) #1529 (only from transcripts with one RiboTaper uORFs)
 
 #Make txdb and obtain 5'UTR sequences
-GTF_path <- "~/Desktop/CTRL_v1/Araport11+CTRL_20181206_expressed.gtf"
+GTF_path <- "~/Desktop/Weak_uORF/Araport11+CTRL_20181206_expressed.gtf"
 FA <- FaFile("~/Desktop/Leaky_scanning/TAIR10_chr_all_2.fas")
 txdb <- makeTxDbFromGFF(file = GTF_path,format="gtf", dataSource="Araport11",organism="Arabidopsis")
 fiveUTR <- fiveUTRsByTranscript(txdb, use.names=T)
@@ -63,7 +63,7 @@ names(fiveUTR2) <- names(fiveUTR)
 fiveUTR2 <- GRangesList(fiveUTR2)
 
 #Load CAGE-seq data
-CAGE=read.delim(file="~/Desktop/CAGE/wt_R123_genome_RiboPlotR.txt",header=F,stringsAsFactors=F,sep="\t")
+CAGE=read.delim(file="~/Desktop/Weak_uORF/wt_R123_genome_RiboPlotR.txt",header=F,stringsAsFactors=F,sep="\t")
 colnames(CAGE) <- c("count","chr","start","strand")
 CAGE$end <- CAGE$start
 head(CAGE)
@@ -137,8 +137,8 @@ for(i in 1:length(fiveUTR_seqs)){
 }
 
 #Save CAGE pTUu data
-saveRDS(OUT_df2,file="~/Desktop/CAGE/OUT_CAGE_WuORFs.RDS")
-OUT_df2 <- readRDS("~/Desktop/CAGE/OUT_CAGE_WuORFs.RDS")
+saveRDS(OUT_df2,file="~/Desktop/Weak_uORF/OUT_CAGE_WuORFs.RDS")
+OUT_df2 <- readRDS("~/Desktop/Weak_uORF/OUT_CAGE_WuORFs.RDS")
 dim(OUT_df2) #[1] 4471    8
 
 #Next merge the main ORF info with uORF info (both from RiboTaper output)
@@ -201,7 +201,7 @@ ggplot(OUT_df5, aes(pTUu,color=Category))+
         legend.title = element_text(size=17,face = "bold"),
         axis.text = element_text(size = 12),
         axis.title=element_text(size=15,face="bold"))
-ggsave("~/Desktop/Weak uORFs/pTUu CAGE vs u-m Ribo ratio 1 0.2 0.pdf",width = 6,height = 4)
+ggsave("~/Desktop/Weak_uORF/pTUu CAGE vs u-m Ribo ratio 1 0.2 0.pdf",width = 6,height = 4)
 ```
 ![image](https://github.com/hsinyenwu/Weak_uORFs/assets/4383665/a6309845-c467-4b45-a4ee-436845383910)
 
@@ -231,13 +231,13 @@ ggplot(OUT_df5, aes(x=uORF_mORF_Ribo_ratio,color=Category))+
         axis.text = element_text(size = 12),
         axis.title=element_text(size=15,face="bold"))
 
-ggsave("~/Desktop/Weak uORFs/uORF_mORF_Ribo_ratio vs pTUu 80 40 0 CAGE.pdf",width = 6,height = 4)
+ggsave("~/Desktop/Weak_uORF/uORF_mORF_Ribo_ratio vs pTUu 80 40 0 CAGE.pdf",width = 6,height = 4)
 ```
 <img width="678" alt="image" src="https://github.com/hsinyenwu/Weak_uORFs/assets/4383665/746fee93-f139-433b-9307-3b06e42805b3">
 
 ```
-RNA <- read.delim("~/Desktop/uORFs_miRNA/RSEM_Araport11_1st+2nd_Riboseq_RNA.genes.results_CDS_only",header=T,sep="\t",stringsAsFactors = F, quote="")
-Ribo <- read.delim("~/Desktop/uORFs_miRNA/RSEM_Araport11_1st+2nd_Riboseq_Ribo.genes.results_CDS_only",header=T,sep="\t",stringsAsFactors = F, quote="")
+RNA <- read.delim("~/Desktop/Weak_uORF/RSEM_Araport11_1st+2nd_Riboseq_RNA.genes.results_CDS_only",header=T,sep="\t",stringsAsFactors = F, quote="")
+Ribo <- read.delim("~/Desktop/Weak_uORF/RSEM_Araport11_1st+2nd_Riboseq_Ribo.genes.results_CDS_only",header=T,sep="\t",stringsAsFactors = F, quote="")
 TE_CDS <- data.frame(gene_id=RNA$gene_id,
                      RNA=RNA$TPM,
                      Ribo=Ribo$TPM,
@@ -286,7 +286,7 @@ ggplot(TE_CDS2, aes(TE,color=Category))+
         legend.title = element_text(size=17,face = "bold"),
         axis.text = element_text(size = 12),
         axis.title=element_text(size=15,face="bold"))
-ggsave("~/Desktop/Weak uORFs/TE vs pTUu 80 40 0 CAGE.pdf",width = 6,height = 4)
+ggsave("~/Desktop/Weak_uORF/TE vs pTUu 80 40 0 CAGE.pdf",width = 6,height = 4)
 ```
 ![image](https://github.com/hsinyenwu/Weak_uORFs/assets/4383665/e84a73d1-ef81-4f4f-80bb-118e3b594fe9)
 
@@ -329,6 +329,6 @@ ggplot(TE_CDS2, aes(TE,color=Category))+
         legend.title = element_text(size=17,face = "bold"),
         axis.text = element_text(size = 12),
         axis.title=element_text(size=15,face="bold"))
-ggsave("~/Desktop/Weak uORFs/Figure 1C TE for uORF_mORF_Ribo_ratio 1 0.2 0.pdf",width = 6,height = 4)
+ggsave("~/Desktop/Weak_uORF/Figure 1C TE for uORF_mORF_Ribo_ratio 1 0.2 0.pdf",width = 6,height = 4)
 ```
 ![image](https://github.com/hsinyenwu/Weak_uORFs/assets/4383665/18b42a3d-7fe4-4457-ba67-811a2338f876)
