@@ -7,6 +7,7 @@ The downloaded data were further processed into [RiboPlotR](https://github.com/h
 The processed files and other files required for reproducing this research are uploaded to Mendeley data.  
 
 ### CAGE-seq
+**``uORF_mORF_Ribo_ratio is also known as Relative uORF Strength (RuS)``**
 ```
 ###################################
 # Weak uORF Oct 21 2023
